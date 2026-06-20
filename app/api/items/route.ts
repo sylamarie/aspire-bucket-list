@@ -9,12 +9,16 @@ export async function GET() {
     .select('*')
     .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 500 })
   return NextResponse.json(data)
 }
 
 export async function POST(req: NextRequest) {
   const { title, description, category, target_date } = await req.json()
+
+  if (!title?.trim()) {
+    return NextResponse.json({ error: 'title is required' }, { status: 400 })
+  }
 
   const { data, error } = await getSupabase()
     .from('bucket_items')
@@ -23,7 +27,7 @@ export async function POST(req: NextRequest) {
       description: description || null,
       category: String(category).toLowerCase(),
       target_date: target_date || null,
-      done: false,
+      // done defaults to FALSE in the database
     })
     .select()
     .single()

@@ -14,8 +14,9 @@ interface SaveData {
 interface Props {
   item: BucketItem | null
   defaultCategory: Category
-  onSave: (data: SaveData) => void
+  onSave: (data: SaveData) => Promise<void>
   onClose: () => void
+  error?: string
 }
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -42,7 +43,7 @@ const LABEL_STYLE: React.CSSProperties = {
   fontFamily: 'var(--font-newsreader), Georgia, serif',
 }
 
-export default function AddEditModal({ item, defaultCategory, onSave, onClose }: Props) {
+export default function AddEditModal({ item, defaultCategory, onSave, onClose, error }: Props) {
   const [category, setCategory] = useState<Category>(item?.category ?? defaultCategory)
   const [title, setTitle] = useState(item?.title ?? '')
   const [description, setDescription] = useState(item?.description ?? '')
@@ -181,6 +182,13 @@ export default function AddEditModal({ item, defaultCategory, onSave, onClose }:
             style={INPUT_STYLE}
           />
         </div>
+
+        {/* Save error */}
+        {error && (
+          <p style={{ margin: '0 0 16px', fontSize: 14, color: '#a83f63', fontFamily: 'var(--font-newsreader), serif' }}>
+            {error}
+          </p>
+        )}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>

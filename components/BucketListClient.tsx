@@ -45,6 +45,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
   const [modalOpen, setModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<BucketItem | null>(null)
   const [openDetailId, setOpenDetailId] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Load localStorage rich data after hydration
   useEffect(() => {
@@ -60,47 +61,82 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
   }
 
   const handleSave = async (data: { title: string; description: string; category: Category; target_date: string }) => {
-    if (editingItem) {
-      const updated = { ...editingItem, ...data }
-      setItems(prev => prev.map(it => it.id === editingItem.id ? updated : it))
-      setModalOpen(false)
-      fetch(`/api/items/${editingItem.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }).catch(console.error)
-    } else {
-      setModalOpen(false)
-      const res = await fetch('/api/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-      if (res.ok) {
-        const newItem: BucketItem = await res.json()
-        const enriched = { ...newItem, subtasks: [], gallery: [] }
-        setItems(prev => [enriched, ...prev])
-        setShowConfetti(true)
+    setSaveError(null)
+    try {
+      if (editingItem) {
+        const res = await fetch(`/api/items/${editingItem.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        })
+        if (res.ok) {
+          const saved = await res.json()
+          setItems(prev => prev.map(it =>
+            it.id === editingItem.id
+              ? { ...it, ...saved, subtasks: it.subtasks, gallery: it.gallery }
+              : it
+          ))
+          setModalOpen(false)
+        } else {
+          const err = await res.json().catch(() => ({}))
+          setSaveError((err as { error?: string }).error ?? 'Failed to save. Please try again.')
+        }
+      } else {
+        const res = await fetch('/api/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        })
+        if (res.ok) {
+          const newItem: BucketItem = await res.json()
+          const enriched = { ...newItem, subtasks: [], gallery: [] }
+          setItems(prev => [enriched, ...prev])
+          setShowConfetti(true)
+          setModalOpen(false)
+        } else {
+          const err = await res.json().catch(() => ({}))
+          setSaveError((err as { error?: string }).error ?? 'Failed to save. Please try again.')
+        }
       }
+    } catch {
+      setSaveError('Network error. Please check your connection.')
     }
   }
 
-  const handleToggle = (id: string) => {
+  const handleToggle = async (id: string) => {
     const item = items.find(it => it.id === id)
     if (!item) return
     const newDone = !item.done
     setItems(prev => prev.map(it => it.id === id ? { ...it, done: newDone } : it))
-    fetch(`/api/items/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ done: newDone }),
-    }).catch(console.error)
+    try {
+      const res = await fetch(`/api/items/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ done: newDone }),
+      })
+      if (!res.ok) {
+        setItems(prev => prev.map(it => it.id === id ? { ...it, done: item.done } : it))
+      }
+    } catch {
+      setItems(prev => prev.map(it => it.id === id ? { ...it, done: item.done } : it))
+    }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    const item = items.find(it => it.id === id)
+    if (!item) return
     setItems(prev => prev.filter(it => it.id !== id))
     removeRich(id)
-    fetch(`/api/items/${id}`, { method: 'DELETE' }).catch(console.error)
+    try {
+      const res = await fetch(`/api/items/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        setItems(prev => [item, ...prev])
+        saveRich(id, { subtasks: item.subtasks, gallery: item.gallery })
+      }
+    } catch {
+      setItems(prev => [item, ...prev])
+      saveRich(id, { subtasks: item.subtasks, gallery: item.gallery })
+    }
   }
 
   const handleItemUpdate = (updated: BucketItem) => {
@@ -455,7 +491,8 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
           item={editingItem}
           defaultCategory={defaultCat}
           onSave={handleSave}
-          onClose={() => setModalOpen(false)}
+          onClose={() => { setModalOpen(false); setSaveError(null) }}
+          error={saveError ?? undefined}
         />
       )}
 
