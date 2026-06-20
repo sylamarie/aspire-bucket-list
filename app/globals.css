@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+:root {
+  --background: #efe6d6;
+  --foreground: #3a2f3d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-newsreader);
+  --font-hand: var(--font-caveat);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-newsreader), Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Animations ── */
+@keyframes aspFloat {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(6px); }
+}
+@keyframes aspRise {
+  from { transform: translateY(14px); }
+  to   { transform: translateY(0); }
+}
+@keyframes aspPop {
+  from { opacity: 0; transform: scale(.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes aspFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.asp-rise  { animation: aspRise .7s cubic-bezier(.16,.84,.44,1) both; }
+.asp-float { animation: aspFloat 2.4s ease-in-out infinite; }
+.asp-fade  { animation: aspFade .2s ease both; }
+.asp-pop   { animation: aspPop .26s cubic-bezier(.16,.84,.44,1) both; }
+.asp-hand  { font-family: var(--font-caveat), cursive; }
+
+/* ── Vintage card hover ── */
+.asp-card-vintage {
+  transition: transform .22s cubic-bezier(.16,.84,.44,1), box-shadow .22s ease;
+}
+.asp-card-vintage:hover {
+  transform: rotate(0deg) translateY(-5px) !important;
+  box-shadow: 0 28px 56px -20px rgba(60,30,80,.28) !important;
+}
+
+/* ── Button hovers ── */
+.btn-ink {
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.btn-ink:hover {
+  background: #f3ead8;
+}
+
+/* ── Inputs ── */
+input::placeholder, textarea::placeholder { color: #b8ab97; }
+input:focus, textarea:focus, select:focus  { outline: none; }
