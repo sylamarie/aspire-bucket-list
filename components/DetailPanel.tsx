@@ -13,9 +13,14 @@ interface Props {
   onEdit: () => void
 }
 
-// Save rich data directly to localStorage (no parent round-trip needed)
+// Gallery stays in localStorage (base64 images); subtasks go to DB
 function saveLocally(id: string, subtasks: Subtask[], gallery: GalleryPhoto[]) {
-  try { localStorage.setItem(`aspire-rich-${id}`, JSON.stringify({ subtasks, gallery })) } catch {}
+  try { localStorage.setItem(`aspire-rich-${id}`, JSON.stringify({ gallery })) } catch {}
+  fetch(`/api/items/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subtasks }),
+  }).catch(() => {})
 }
 
 function processImage(file: File): Promise<string> {
@@ -44,7 +49,7 @@ function processImage(file: File): Promise<string> {
 const stamp = (c: { ink: string; tint: string; label: string }): React.CSSProperties => ({
   display: 'inline-block', padding: '4px 11px',
   border: `1.5px solid ${c.ink}`, borderRadius: 2,
-  fontFamily: 'var(--font-newsreader), Georgia, serif',
+  fontFamily: 'var(--font-nunito), sans-serif',
   fontSize: 12, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase',
   background: c.tint, color: c.ink,
 })
@@ -54,8 +59,18 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
   const [subtasks, setSubtasks] = useState<Subtask[]>(item.subtasks ?? [])
   const [gallery, setGallery] = useState<GalleryPhoto[]>(item.gallery ?? [])
   const [newSubText, setNewSubText] = useState('')
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null)
+  const [pendingCaption, setPendingCaption] = useState('')
+  const [pendingDate, setPendingDate] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editCaption, setEditCaption] = useState('')
+  const [editDate, setEditDate] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const pendingRef = useRef<PhotoTarget | null>(null)
+  const editCaptionRef = useRef('')
+  const editDateRef = useRef('')
+  editCaptionRef.current = editCaption
+  editDateRef.current = editDate
 
   // Keep refs current so the close handler always has fresh values
   const subtasksRef = useRef(subtasks)
@@ -120,19 +135,52 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
       subtasksRef.current = next
       saveLocally(item.id, next, galleryRef.current)
     } else {
-      const newPhoto: GalleryPhoto = { id: 'g' + Date.now(), src }
-      const next = [...galleryRef.current, newPhoto]
-      setGallery(next)
-      galleryRef.current = next
-      saveLocally(item.id, subtasksRef.current, next)
+      setPendingPhoto(src)
+      setPendingCaption('')
+      setPendingDate('')
     }
   }
 
   const removeMemory = (photoId: string) => {
+    if (editingId === photoId) setEditingId(null)
     const next = galleryRef.current.filter(g => g.id !== photoId)
     setGallery(next)
     galleryRef.current = next
     saveLocally(item.id, subtasksRef.current, next)
+  }
+
+  const confirmPending = () => {
+    if (!pendingPhoto) return
+    const newPhoto: GalleryPhoto = {
+      id: 'g' + Date.now(),
+      src: pendingPhoto,
+      caption: pendingCaption.trim() || undefined,
+      date: pendingDate || undefined,
+    }
+    const next = [...galleryRef.current, newPhoto]
+    setGallery(next)
+    galleryRef.current = next
+    saveLocally(item.id, subtasksRef.current, next)
+    setPendingPhoto(null)
+    setPendingCaption('')
+    setPendingDate('')
+  }
+
+  const saveEdit = (id: string) => {
+    const next = galleryRef.current.map(g =>
+      g.id === id
+        ? { ...g, caption: editCaptionRef.current.trim() || undefined, date: editDateRef.current || undefined }
+        : g
+    )
+    setGallery(next)
+    galleryRef.current = next
+    saveLocally(item.id, subtasksRef.current, next)
+    setEditingId(null)
+  }
+
+  const fmtPhotoDate = (d: string) => {
+    const [y, m, day] = d.split('-').map(Number)
+    return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
   const btnBase: React.CSSProperties = {
@@ -169,7 +217,7 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
           <button
             type="button"
             onClick={handleEdit}
-            style={{ ...btnBase, width: 'auto', padding: '7px 14px', gap: 6, fontSize: 13, fontFamily: 'var(--font-newsreader), Georgia, serif' }}
+            style={{ ...btnBase, width: 'auto', padding: '7px 14px', gap: 6, fontSize: 13, fontFamily: 'var(--font-nunito), sans-serif' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
               <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
@@ -199,8 +247,8 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
 
           <h3 style={{
             margin: 0, paddingRight: 60,
-            fontFamily: 'var(--font-newsreader), Georgia, serif',
-            fontStyle: 'italic', fontWeight: 500, fontSize: 34, lineHeight: 1.12, color: '#34283a',
+            fontFamily: 'var(--font-nunito), sans-serif',
+            fontWeight: 500, fontSize: 34, lineHeight: 1.12, color: '#34283a',
           }}>
             {item.title}
           </h3>
@@ -221,8 +269,8 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
           <div style={{ marginTop: 32 }}>
             <h4 style={{
               margin: '0 0 4px',
-              fontFamily: 'var(--font-newsreader), Georgia, serif',
-              fontStyle: 'italic', fontWeight: 500, fontSize: 22, color: '#34283a',
+              fontFamily: 'var(--font-nunito), sans-serif',
+              fontWeight: 500, fontSize: 22, color: '#34283a',
             }}>
               The checklist
             </h4>
@@ -286,7 +334,7 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
 
                 <span style={{
                   flex: 1,
-                  fontFamily: 'var(--font-newsreader), Georgia, serif', fontSize: 17,
+                  fontFamily: 'var(--font-nunito), sans-serif', fontSize: 17,
                   color: s.done ? '#a89c89' : '#33293a',
                   textDecoration: s.done ? 'line-through' : 'none', textDecorationColor: '#cabb9f',
                 }}>
@@ -315,7 +363,7 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
                 style={{
                   flex: 1, padding: '10px 4px', border: 'none', outline: 'none',
                   borderBottom: '1.5px solid #d9c9a8', background: 'transparent',
-                  fontFamily: 'var(--font-newsreader), Georgia, serif', fontSize: 16, color: '#34283a',
+                  fontFamily: 'var(--font-nunito), sans-serif', fontSize: 16, color: '#34283a',
                 }}
               />
               <button
@@ -325,7 +373,7 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '10px 16px', border: '1px solid #cdbf9f', borderRadius: 2,
                   background: '#f3ead8', color: '#5a4a2f',
-                  fontFamily: 'var(--font-newsreader), Georgia, serif',
+                  fontFamily: 'var(--font-nunito), sans-serif',
                   fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap',
                 }}
               >
@@ -342,8 +390,8 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
               <h4 style={{
                 margin: 0,
-                fontFamily: 'var(--font-newsreader), Georgia, serif',
-                fontStyle: 'italic', fontWeight: 500, fontSize: 22, color: '#34283a',
+                fontFamily: 'var(--font-nunito), sans-serif',
+                fontWeight: 500, fontSize: 22, color: '#34283a',
               }}>
                 Memories &amp; mementos
               </h4>
@@ -359,17 +407,81 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
                 <div
                   key={g.id}
                   style={{
-                    position: 'relative', background: '#fff', padding: '8px 8px 4px',
+                    position: 'relative', background: '#fff', padding: '8px 8px 6px',
                     boxShadow: '2px 4px 12px rgba(58,30,61,.16)',
-                    transform: `rotate(${ROT[gi % ROT.length]}deg)`,
-                    border: '1px solid #ece4d2',
+                    transform: editingId === g.id ? 'none' : `rotate(${ROT[gi % ROT.length]}deg)`,
+                    border: editingId === g.id ? '2px solid #c9b88a' : '1px solid #ece4d2',
+                    transition: 'transform .15s ease, border .15s ease',
                   }}
                 >
                   <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%) rotate(-2deg)', width: 58, height: 18, background: 'rgba(200,176,120,.4)', border: '1px solid rgba(180,150,90,.25)' }} />
                   <div style={{ aspectRatio: '1', overflow: 'hidden', background: '#ece4d2' }}>
                     <img src={g.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
-                  <div className="asp-hand" style={{ textAlign: 'center', fontSize: 15, color: '#a08766', padding: '5px 2px 2px' }}>a good day</div>
+
+                  {editingId === g.id ? (
+                    <div style={{ paddingTop: 6 }}>
+                      <input
+                        autoFocus
+                        value={editCaption}
+                        onChange={e => setEditCaption(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(g.id); if (e.key === 'Escape') setEditingId(null) }}
+                        placeholder="caption…"
+                        style={{
+                          display: 'block', width: '100%', border: 'none', borderBottom: '1px solid #d9c9a8',
+                          outline: 'none', background: 'transparent', textAlign: 'center',
+                          fontFamily: "var(--font-gochi), 'Chalkboard SE', Chalkboard, cursive", fontSize: 15, color: '#34283a',
+                          padding: '2px 0 3px', boxSizing: 'border-box', marginBottom: 4,
+                        }}
+                      />
+                      <input
+                        type="date"
+                        value={editDate}
+                        onChange={e => setEditDate(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(g.id); if (e.key === 'Escape') setEditingId(null) }}
+                        style={{
+                          display: 'block', width: '100%', border: 'none', borderBottom: '1px solid #d9c9a8',
+                          outline: 'none', background: 'transparent', textAlign: 'center',
+                          fontSize: 11, color: '#a08766', padding: '2px 0', boxSizing: 'border-box', marginBottom: 6,
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: 3 }}>
+                        <button
+                          type="button"
+                          onClick={() => saveEdit(g.id)}
+                          style={{
+                            flex: 1, padding: '4px', border: '1px solid #cdbf9f', borderRadius: 1,
+                            background: '#f3ead8', color: '#5a4a2f', cursor: 'pointer',
+                            fontFamily: 'var(--font-nunito), sans-serif', fontSize: 12,
+                          }}
+                        >✓ save</button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          style={{
+                            flex: 'none', padding: '4px 7px', border: '1px solid #e0d2b6', borderRadius: 1,
+                            background: 'transparent', color: '#a89c89', cursor: 'pointer', fontSize: 12,
+                          }}
+                        >✕</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => { setEditingId(g.id); setEditCaption(g.caption ?? ''); setEditDate(g.date ?? '') }}
+                      title="Click to edit caption or date"
+                      style={{ cursor: 'text', paddingTop: 4, minHeight: 30 }}
+                    >
+                      <div className="asp-chalk" style={{ textAlign: 'center', fontSize: 15, color: g.caption ? '#34283a' : '#c4b8a0' }}>
+                        {g.caption || 'add a caption…'}
+                      </div>
+                      {g.date && (
+                        <div className="asp-chalk" style={{ textAlign: 'center', fontSize: 12, color: '#a08766', marginTop: 2 }}>
+                          {fmtPhotoDate(g.date)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => removeMemory(g.id)}
@@ -386,6 +498,58 @@ export default function DetailPanel({ item, onClose, onItemUpdate, onEdit }: Pro
                   </button>
                 </div>
               ))}
+
+              {pendingPhoto && (
+                <div style={{ position: 'relative', background: '#fff', padding: '8px 8px 8px', boxShadow: '2px 4px 12px rgba(58,30,61,.16)', border: '2px solid #c9b88a' }}>
+                  <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%) rotate(-2deg)', width: 58, height: 18, background: 'rgba(200,176,120,.4)', border: '1px solid rgba(180,150,90,.25)' }} />
+                  <div style={{ aspectRatio: '1', overflow: 'hidden', background: '#ece4d2', marginBottom: 6 }}>
+                    <img src={pendingPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                  <input
+                    autoFocus
+                    value={pendingCaption}
+                    onChange={e => setPendingCaption(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && confirmPending()}
+                    placeholder="add a caption…"
+                    style={{
+                      display: 'block', width: '100%', border: 'none', borderBottom: '1px solid #d9c9a8',
+                      outline: 'none', background: 'transparent', textAlign: 'center',
+                      fontFamily: "var(--font-gochi), 'Chalkboard SE', Chalkboard, cursive", fontSize: 15, color: '#34283a',
+                      padding: '2px 0 3px', boxSizing: 'border-box', marginBottom: 4,
+                    }}
+                  />
+                  <input
+                    type="date"
+                    value={pendingDate}
+                    onChange={e => setPendingDate(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && confirmPending()}
+                    style={{
+                      display: 'block', width: '100%', border: 'none', borderBottom: '1px solid #d9c9a8',
+                      outline: 'none', background: 'transparent', textAlign: 'center',
+                      fontSize: 11, color: '#a08766', padding: '2px 0', boxSizing: 'border-box', marginBottom: 8,
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    <button
+                      type="button"
+                      onClick={confirmPending}
+                      style={{
+                        flex: 1, padding: '5px', border: '1px solid #cdbf9f', borderRadius: 1,
+                        background: '#f3ead8', color: '#5a4a2f', cursor: 'pointer',
+                        fontFamily: 'var(--font-nunito), sans-serif', fontSize: 12,
+                      }}
+                    >save</button>
+                    <button
+                      type="button"
+                      onClick={() => setPendingPhoto(null)}
+                      style={{
+                        flex: 'none', padding: '5px 8px', border: '1px solid #e0d2b6', borderRadius: 1,
+                        background: 'transparent', color: '#a89c89', cursor: 'pointer', fontSize: 12,
+                      }}
+                    >✕</button>
+                  </div>
+                </div>
+              )}
 
               <button
                 type="button"

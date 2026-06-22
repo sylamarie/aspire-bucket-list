@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 type Ctx = { params: Promise<{ id: string }> }
 
-const ALLOWED_FIELDS = ['title', 'description', 'category', 'target_date', 'done'] as const
+const ALLOWED_FIELDS = ['title', 'description', 'category', 'target_date', 'done', 'subtasks'] as const
 const VALID_CATEGORIES = new Set(['travel', 'experience', 'skill', 'goal'])
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {

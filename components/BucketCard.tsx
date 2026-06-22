@@ -1,7 +1,7 @@
 'use client'
 
 import { BucketItem } from '@/types/bucket'
-import { CATS, ROT, fmtDate } from '@/lib/cats'
+import { CATS, fmtDate } from '@/lib/cats'
 
 interface Props {
   item: BucketItem
@@ -14,14 +14,13 @@ interface Props {
 
 export default function BucketCard({ item, index, onToggle, onEdit, onDelete, onClick }: Props) {
   const c = CATS[item.category] ?? CATS['travel']
-  const rot = item.done ? 0 : ROT[index % ROT.length]
 
   const stampStyle: React.CSSProperties = {
     display: 'inline-block',
     padding: '4px 11px',
     border: `1.5px solid ${c.ink}`,
     borderRadius: 2,
-    fontFamily: 'var(--font-newsreader), Georgia, serif',
+    fontFamily: 'var(--font-nunito), sans-serif',
     fontSize: 12,
     fontWeight: 600,
     letterSpacing: '.14em',
@@ -47,22 +46,9 @@ export default function BucketCard({ item, index, onToggle, onEdit, onDelete, on
         border: '1px solid #e6d8bd',
         boxShadow: '2px 4px 14px rgba(58,30,61,.10)',
         cursor: 'pointer',
-        transform: `rotate(${rot}deg)`,
         opacity: item.done ? 0.78 : 1,
       }}
     >
-      {/* Tape strip */}
-      <div style={{
-        position: 'absolute',
-        top: -10,
-        left: '50%',
-        transform: `translateX(-50%) rotate(${index % 2 ? 1.5 : -1.5}deg)`,
-        width: 84,
-        height: 22,
-        background: 'rgba(200,176,120,.38)',
-        border: '1px solid rgba(180,150,90,.22)',
-        pointerEvents: 'none',
-      }} />
 
       {/* Stamp + date */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
@@ -78,9 +64,8 @@ export default function BucketCard({ item, index, onToggle, onEdit, onDelete, on
       {/* Title */}
       <h3 style={{
         margin: '15px 0 9px',
-        fontFamily: 'var(--font-newsreader), Georgia, serif',
-        fontStyle: 'italic',
-        fontWeight: 500,
+        fontFamily: "'Study Daily', var(--font-nunito), sans-serif",
+        fontWeight: 400,
         fontSize: 22,
         lineHeight: 1.22,
         color: '#2f2535',
@@ -126,14 +111,38 @@ export default function BucketCard({ item, index, onToggle, onEdit, onDelete, on
         borderTop: '1px dashed #d7c8ab',
       }}>
         {item.gallery.length > 0 ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 13, color: '#9a8e7e' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="1"/>
-              <circle cx="9" cy="9" r="2"/>
-              <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>
-            </svg>
-            {item.gallery.length} {item.gallery.length === 1 ? 'photo' : 'photos'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            {/* Stacked photo thumbnails */}
+            <div style={{ position: 'relative', width: 54, height: 52, flexShrink: 0 }}>
+              {item.gallery.slice(0, 3).map((photo, i) => {
+                const rots  = [-8, 4, -1]
+                const dxPx  = [-4, 4, 0]
+                const dyPx  = [5, 3, 0]
+                return (
+                  <img
+                    key={photo.id}
+                    src={photo.src}
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      left: `calc(50% + ${dxPx[i]}px - 18px)`,
+                      top: dyPx[i],
+                      width: 36,
+                      height: 44,
+                      objectFit: 'cover',
+                      border: '2px solid #fff',
+                      boxShadow: '1px 2px 6px rgba(0,0,0,.22)',
+                      transform: `rotate(${rots[i]}deg)`,
+                      zIndex: i,
+                    }}
+                  />
+                )
+              })}
+            </div>
+            <span style={{ fontSize: 13, color: '#9a8e7e' }}>
+              {item.gallery.length} {item.gallery.length === 1 ? 'photo' : 'photos'}
+            </span>
+          </div>
         ) : (
           <span className="asp-hand" style={{ fontSize: 16, color: '#b0a48f' }}>tap to journal…</span>
         )}

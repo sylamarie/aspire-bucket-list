@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Study Daily';
+  src: url('/fonts/StudyDaily.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #efe6d6;
   --foreground: #3a2f3d;
@@ -8,14 +16,14 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-newsreader);
+  --font-sans: var(--font-nunito);
   --font-hand: var(--font-caveat);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-newsreader), Georgia, serif;
+  font-family: 'Study Daily', var(--font-nunito), sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -42,6 +50,7 @@ body {
 .asp-fade  { animation: aspFade .2s ease both; }
 .asp-pop   { animation: aspPop .26s cubic-bezier(.16,.84,.44,1) both; }
 .asp-hand  { font-family: var(--font-caveat), cursive; }
+.asp-chalk { font-family: var(--font-gochi), 'Chalkboard SE', Chalkboard, cursive; }
 
 /* ── Vintage card hover ── */
 .asp-card-vintage {

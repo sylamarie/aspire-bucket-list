@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import ReactConfetti from 'react-confetti'
 import { BucketItem, Category, Subtask, GalleryPhoto } from '@/types/bucket'
-import { CATS, CAT_KEYS } from '@/lib/cats'
+import { CATS, CAT_KEYS, ROT } from '@/lib/cats'
 import BucketCard from './BucketCard'
 import AddEditModal from './AddEditModal'
 import DetailPanel from './DetailPanel'
@@ -11,33 +12,37 @@ import DetailPanel from './DetailPanel'
 type FilterKey = 'all' | Category
 type SortKey = 'recent' | 'date' | 'category'
 
-// ── localStorage helpers ─────────────────────────────────────
-function loadRich(id: string): { subtasks: Subtask[]; gallery: GalleryPhoto[] } {
+// ── localStorage helpers (gallery only — subtasks live in DB) ─
+function loadGallery(id: string): GalleryPhoto[] {
   try {
     const raw = typeof window !== 'undefined' ? localStorage.getItem(`aspire-rich-${id}`) : null
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      return parsed.gallery ?? []
+    }
   } catch {}
-  return { subtasks: [], gallery: [] }
+  return []
 }
 
-function saveRich(id: string, data: { subtasks: Subtask[]; gallery: GalleryPhoto[] }) {
-  try { localStorage.setItem(`aspire-rich-${id}`, JSON.stringify(data)) } catch {}
+function saveGallery(id: string, gallery: GalleryPhoto[]) {
+  try { localStorage.setItem(`aspire-rich-${id}`, JSON.stringify({ gallery })) } catch {}
 }
 
-function removeRich(id: string) {
+function removeGallery(id: string) {
   try { localStorage.removeItem(`aspire-rich-${id}`) } catch {}
 }
 
 function enrich(items: BucketItem[]): BucketItem[] {
-  return items.map(item => {
-    const rich = loadRich(item.id)
-    return { ...item, subtasks: rich.subtasks ?? [], gallery: rich.gallery ?? [] }
-  })
+  return items.map(item => ({
+    ...item,
+    subtasks: item.subtasks ?? [],
+    gallery: loadGallery(item.id),
+  }))
 }
 
 export default function BucketListClient({ initialItems }: { initialItems: BucketItem[] }) {
   const [items, setItems] = useState<BucketItem[]>(() =>
-    initialItems.map(item => ({ ...item, subtasks: [], gallery: [] }))
+    initialItems.map(item => ({ ...item, subtasks: item.subtasks ?? [], gallery: [] }))
   )
   const [filter, setFilter] = useState<FilterKey>('all')
   const [sortBy, setSortBy] = useState<SortKey>('recent')
@@ -126,22 +131,27 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
     const item = items.find(it => it.id === id)
     if (!item) return
     setItems(prev => prev.filter(it => it.id !== id))
-    removeRich(id)
+    removeGallery(id)
     try {
       const res = await fetch(`/api/items/${id}`, { method: 'DELETE' })
       if (!res.ok) {
         setItems(prev => [item, ...prev])
-        saveRich(id, { subtasks: item.subtasks, gallery: item.gallery })
+        saveGallery(id, item.gallery)
       }
     } catch {
       setItems(prev => [item, ...prev])
-      saveRich(id, { subtasks: item.subtasks, gallery: item.gallery })
+      saveGallery(id, item.gallery)
     }
   }
 
   const handleItemUpdate = (updated: BucketItem) => {
     setItems(prev => prev.map(it => it.id === updated.id ? updated : it))
-    saveRich(updated.id, { subtasks: updated.subtasks, gallery: updated.gallery })
+    saveGallery(updated.id, updated.gallery)
+    fetch(`/api/items/${updated.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subtasks: updated.subtasks }),
+    }).catch(() => {})
   }
 
   // ── Computed ─────────────────────────────────────────────────
@@ -197,7 +207,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
         <div style={{ position: 'absolute', top: 0, left: '18%', width: 26, height: 118, background: 'linear-gradient(#caa765,#a8854a)', clipPath: 'polygon(0 0,100% 0,100% 100%,50% 84%,0 100%)' }} />
 
         <div style={{ position: 'relative', zIndex: 2 }}>
-          <p className="asp-rise" style={{ margin: '0 0 24px', fontSize: 12, fontWeight: 600, letterSpacing: '.28em', color: 'rgba(212,168,80,.85)', textTransform: 'uppercase', fontFamily: 'var(--font-newsreader), Georgia, serif' }}>
+          <p className="asp-rise" style={{ margin: '0 0 24px', fontSize: 12, fontWeight: 600, letterSpacing: '.28em', color: 'rgba(212,168,80,.85)', textTransform: 'uppercase', fontFamily: 'var(--font-nunito), sans-serif' }}>
             A Living Journal · Est. 2026
           </p>
 
@@ -210,9 +220,9 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
 
           <h1 className="asp-rise" style={{
             margin: 0,
-            fontFamily: 'var(--font-newsreader), Georgia, serif',
+            fontFamily: 'var(--font-cormorant), Georgia, serif',
             fontStyle: 'italic',
-            fontWeight: 400,
+            fontWeight: 600,
             fontSize: 'clamp(86px, 16vw, 200px)',
             lineHeight: .9,
             color: '#f5ecd6',
@@ -241,7 +251,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
               borderRadius: 2,
               background: 'transparent',
               color: '#f0ddb0',
-              fontFamily: 'var(--font-newsreader), Georgia, serif',
+              fontFamily: 'var(--font-nunito), sans-serif',
               fontSize: 17,
               letterSpacing: '.06em',
               cursor: 'pointer',
@@ -268,7 +278,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
           <div
             className="asp-float"
             onClick={scrollToList}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'rgba(212,168,80,.6)', fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'var(--font-newsreader), serif' }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: 'rgba(212,168,80,.6)', fontSize: 11, letterSpacing: '.22em', textTransform: 'uppercase', cursor: 'pointer', fontFamily: 'var(--font-nunito), sans-serif' }}
           >
             turn the page
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -283,9 +293,9 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
         id="aspire-list"
         style={{
           background: '#efe6d6',
-          backgroundImage: 'linear-gradient(rgba(168,134,80,.10) 1px, transparent 1px)',
-          backgroundSize: '100% 34px',
-          backgroundPosition: '0 96px',
+          backgroundImage: 'radial-gradient(circle, rgba(168,134,80,.35) 1.5px, transparent 1.5px)',
+          backgroundSize: '28px 28px',
+          backgroundPosition: '0 8px',
         }}
       >
         <div style={{ maxWidth: 1160, margin: '0 auto', padding: '80px 28px 120px' }}>
@@ -298,13 +308,13 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
               </span>
               <h2 style={{
                 margin: '4px 0 0',
-                fontFamily: 'var(--font-newsreader), Georgia, serif',
-                fontStyle: 'italic', fontWeight: 400, fontSize: 'clamp(36px,5vw,56px)',
+                fontFamily: "'Study Daily', var(--font-nunito), sans-serif",
+                fontWeight: 400, fontSize: 'clamp(36px,5vw,56px)',
                 letterSpacing: '-.01em', color: '#2f2535', lineHeight: 1.05,
               }}>
                 My Aspirations
               </h2>
-              <p style={{ margin: '8px 0 0', fontSize: 15, color: '#8a7d6c', fontFamily: 'var(--font-newsreader), serif' }}>
+              <p style={{ margin: '8px 0 0', fontSize: 15, color: '#8a7d6c', fontFamily: 'var(--font-nunito), sans-serif' }}>
                 {total} {total === 1 ? 'dream' : 'dreams'} · {doneCount} achieved · {activeCount} in motion
               </p>
             </div>
@@ -314,7 +324,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
                 display: 'inline-flex', alignItems: 'center', gap: 8, padding: '13px 24px',
                 border: '1.5px solid #5b4694', borderRadius: 2,
                 background: '#5b4694', color: '#fbf6ea',
-                fontFamily: 'var(--font-newsreader), Georgia, serif', fontSize: 16,
+                fontFamily: 'var(--font-nunito), sans-serif', fontSize: 16,
                 cursor: 'pointer', transition: 'all .18s ease',
                 boxShadow: '2px 4px 18px rgba(91,70,148,.35)',
               }}
@@ -345,7 +355,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 26 }}>
               <div style={{ flex: 1, minWidth: 220 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-                  <span style={{ fontFamily: 'var(--font-newsreader), serif', fontStyle: 'italic', fontSize: 16, color: '#6b6052' }}>
+                  <span style={{ fontFamily: 'var(--font-nunito), sans-serif', fontSize: 16, color: '#6b6052' }}>
                     Progress through the list
                   </span>
                   <span className="asp-hand" style={{ fontSize: 21, color: '#9a6a4a' }}>{pct}% there</span>
@@ -365,10 +375,10 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
                   { label: 'In motion', val: activeCount },
                 ].map(({ label, val }) => (
                   <div key={label} style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: 'var(--font-newsreader), Georgia, serif', fontStyle: 'italic', fontWeight: 400, fontSize: 34, color: '#34283a', lineHeight: 1 }}>
+                    <div style={{ fontFamily: 'var(--font-nunito), sans-serif', fontWeight: 400, fontSize: 34, color: '#34283a', lineHeight: 1 }}>
                       {val}
                     </div>
-                    <div style={{ fontSize: 12, color: '#a89c89', letterSpacing: '.04em', marginTop: 4, fontFamily: 'var(--font-newsreader), serif' }}>
+                    <div style={{ fontSize: 12, color: '#a89c89', letterSpacing: '.04em', marginTop: 4, fontFamily: 'var(--font-nunito), sans-serif' }}>
                       {label}
                     </div>
                   </div>
@@ -391,7 +401,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px',
                       borderRadius: 2, cursor: 'pointer', transition: 'all .15s ease',
-                      fontFamily: 'var(--font-newsreader), Georgia, serif',
+                      fontFamily: 'var(--font-nunito), sans-serif',
                       fontSize: 14, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase',
                       border: active
                         ? `1.5px solid ${c ? c.ink : '#5b4694'}`
@@ -421,7 +431,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
               onChange={e => setSortBy(e.target.value as SortKey)}
               style={{
                 padding: '8px 12px', border: '1px solid #d9c9a8', borderRadius: 2,
-                fontFamily: 'var(--font-newsreader), Georgia, serif',
+                fontFamily: 'var(--font-nunito), sans-serif',
                 fontSize: 14, color: '#6b6052', background: '#fffdf6', cursor: 'pointer',
               }}
             >
@@ -440,17 +450,61 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
               gap: 36,
               paddingBottom: 24,
             }}>
-              {displayItems.map((item, idx) => (
-                <BucketCard
-                  key={item.id}
-                  item={item}
-                  index={idx}
-                  onToggle={() => handleToggle(item.id)}
-                  onEdit={() => openEdit(item)}
-                  onDelete={() => handleDelete(item.id)}
-                  onClick={() => setOpenDetailId(item.id)}
-                />
-              ))}
+              <AnimatePresence mode="popLayout" initial={false}>
+                {displayItems.map((item, idx) => {
+                  const rot = item.done ? 0 : ROT[idx % ROT.length]
+                  const tapeRot = idx % 2 ? 1.5 : -1.5
+                  return (
+                    <motion.div
+                      key={item.id}
+                      layout
+                      initial={{ opacity: 0, y: -32, scale: 0.91, rotate: rot + (rot >= 0 ? -6 : 6) }}
+                      animate={{ opacity: 1, y: 0, scale: 1, rotate: rot }}
+                      exit={{
+                        opacity: 0, y: 160, scale: 0.78, rotate: rot + 18,
+                        transition: { duration: 0.52, delay: 0.21, ease: [0.4, 0, 0.85, 0.5] },
+                      }}
+                      transition={{
+                        layout: { type: 'spring', damping: 28, stiffness: 360 },
+                        default: { type: 'spring', damping: 20, stiffness: 230, mass: 0.85 },
+                      }}
+                      style={{ position: 'relative' }}
+                    >
+                      {/* Tape — left-to-right apply on enter, left-to-right peel on exit */}
+                      <motion.div
+                        initial={{ clipPath: 'inset(0 100% 0 0)', y: -8, opacity: 0.7 }}
+                        animate={{ clipPath: 'inset(0 0% 0 0)', y: 0, opacity: 1 }}
+                        exit={{
+                          clipPath: 'inset(0 0% 0 100%)',
+                          y: -18,
+                          skewX: -12,
+                          opacity: 0,
+                          transition: { duration: 0.27, ease: [0.55, 0, 0.9, 0.4] },
+                        }}
+                        transition={{ duration: 0.34, ease: 'easeOut', delay: 0.08 }}
+                        style={{
+                          position: 'absolute', top: -10,
+                          left: 'calc(50% - 42px)',
+                          width: 84, height: 22,
+                          rotate: tapeRot,
+                          background: 'rgba(200,176,120,.38)',
+                          border: '1px solid rgba(180,150,90,.22)',
+                          pointerEvents: 'none',
+                          zIndex: 1,
+                        }}
+                      />
+                      <BucketCard
+                        item={item}
+                        index={idx}
+                        onToggle={() => handleToggle(item.id)}
+                        onEdit={() => openEdit(item)}
+                        onDelete={() => handleDelete(item.id)}
+                        onClick={() => setOpenDetailId(item.id)}
+                      />
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
             </div>
           ) : (
             <div style={{
@@ -460,8 +514,8 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
               <span className="asp-hand" style={{ fontSize: 36, color: '#cabb9f' }}>—</span>
               <p style={{
                 margin: '14px 0 6px',
-                fontFamily: 'var(--font-newsreader), Georgia, serif',
-                fontStyle: 'italic', fontWeight: 400, fontSize: 24, color: '#34283a',
+                fontFamily: 'var(--font-nunito), sans-serif',
+                fontWeight: 400, fontSize: 24, color: '#34283a',
               }}>
                 {filter === 'all' ? 'A blank page…' : `No ${CATS[filter as Category]?.label.toLowerCase() ?? ''} entries yet`}
               </p>
@@ -474,7 +528,7 @@ export default function BucketListClient({ initialItems }: { initialItems: Bucke
                   display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px',
                   border: '1.5px solid #5b4694', borderRadius: 2,
                   background: '#5b4694', color: '#fbf6ea',
-                  fontFamily: 'var(--font-newsreader), Georgia, serif', fontSize: 15, cursor: 'pointer',
+                  fontFamily: 'var(--font-nunito), sans-serif', fontSize: 15, cursor: 'pointer',
                 }}
               >
                 Write it in

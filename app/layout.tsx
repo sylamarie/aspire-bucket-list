@@ -1,18 +1,37 @@
 import type { Metadata } from 'next'
-import { Newsreader, Caveat } from 'next/font/google'
+import { Nunito, Caveat, Gochi_Hand, Newsreader, Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
 
-const newsreader = Newsreader({
-  variable: '--font-newsreader',
+const nunito = Nunito({
+  variable: '--font-nunito',
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
-  style: ['normal', 'italic'],
+  weight: ['300', '400', '500', '600', '700'],
 })
 
 const caveat = Caveat({
   variable: '--font-caveat',
   subsets: ['latin'],
   weight: ['500', '600', '700'],
+})
+
+const gochiHand = Gochi_Hand({
+  variable: '--font-gochi',
+  subsets: ['latin'],
+  weight: ['400'],
+})
+
+const newsreader = Newsreader({
+  variable: '--font-newsreader',
+  subsets: ['latin'],
+  weight: ['400'],
+  style: ['normal', 'italic'],
+})
+
+const cormorant = Cormorant_Garamond({
+  variable: '--font-cormorant',
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  style: ['normal', 'italic'],
 })
 
 export const metadata: Metadata = {
@@ -28,7 +47,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${caveat.variable} h-full`}
+      className={`${nunito.variable} ${caveat.variable} ${gochiHand.variable} ${newsreader.variable} ${cormorant.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
