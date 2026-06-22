@@ -10,6 +10,8 @@ export interface Subtask {
 export interface GalleryPhoto {
   id: string
   src: string
+  caption?: string
+  date?: string
 }
 
 export interface BucketItem {

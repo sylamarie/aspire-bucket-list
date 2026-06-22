@@ -25,7 +25,7 @@ const INPUT_STYLE: React.CSSProperties = {
   border: 'none',
   borderBottom: '1.5px solid #d9c9a8',
   background: 'transparent',
-  fontFamily: 'var(--font-newsreader), Georgia, serif',
+  fontFamily: 'var(--font-nunito), sans-serif',
   fontSize: 16,
   color: '#34283a',
   boxSizing: 'border-box',
@@ -40,7 +40,7 @@ const LABEL_STYLE: React.CSSProperties = {
   textTransform: 'uppercase',
   color: '#a89c89',
   marginBottom: 6,
-  fontFamily: 'var(--font-newsreader), Georgia, serif',
+  fontFamily: 'var(--font-nunito), sans-serif',
 }
 
 export default function AddEditModal({ item, defaultCategory, onSave, onClose, error }: Props) {
@@ -104,8 +104,8 @@ export default function AddEditModal({ item, defaultCategory, onSave, onClose, e
           </span>
           <h3 style={{
             margin: '4px 0 0',
-            fontFamily: 'var(--font-newsreader), Georgia, serif',
-            fontStyle: 'italic', fontWeight: 500, fontSize: 30, color: '#2f2535', lineHeight: 1.1,
+            fontFamily: 'var(--font-nunito), sans-serif',
+            fontWeight: 500, fontSize: 30, color: '#2f2535', lineHeight: 1.1,
           }}>
             {item ? 'Update aspiration' : 'Add an aspiration'}
           </h3>
@@ -124,7 +124,7 @@ export default function AddEditModal({ item, defaultCategory, onSave, onClose, e
                 style={{
                   padding: '6px 14px',
                   borderRadius: 2,
-                  fontFamily: 'var(--font-newsreader), Georgia, serif',
+                  fontFamily: 'var(--font-nunito), sans-serif',
                   fontSize: 13,
                   fontWeight: 600,
                   letterSpacing: '.1em',
@@ -185,7 +185,7 @@ export default function AddEditModal({ item, defaultCategory, onSave, onClose, e
 
         {/* Save error */}
         {error && (
-          <p style={{ margin: '0 0 16px', fontSize: 14, color: '#a83f63', fontFamily: 'var(--font-newsreader), serif' }}>
+          <p style={{ margin: '0 0 16px', fontSize: 14, color: '#a83f63', fontFamily: 'var(--font-nunito), sans-serif' }}>
             {error}
           </p>
         )}
@@ -197,7 +197,7 @@ export default function AddEditModal({ item, defaultCategory, onSave, onClose, e
             style={{
               padding: '11px 20px', border: '1px solid #d9c9a8', borderRadius: 2,
               background: 'transparent', color: '#7a6e5f',
-              fontFamily: 'var(--font-newsreader), Georgia, serif', fontSize: 15, cursor: 'pointer',
+              fontFamily: 'var(--font-nunito), sans-serif', fontSize: 15, cursor: 'pointer',
             }}
           >
             Cancel
@@ -209,7 +209,7 @@ export default function AddEditModal({ item, defaultCategory, onSave, onClose, e
               padding: '11px 22px', border: '1.5px solid #5b4694', borderRadius: 2,
               background: saving || !title.trim() ? '#e6e0f1' : '#5b4694',
               color: saving || !title.trim() ? '#9a8fb0' : '#fbf6ea',
-              fontFamily: 'var(--font-newsreader), Georgia, serif', fontSize: 15, fontWeight: 600,
+              fontFamily: 'var(--font-nunito), sans-serif', fontSize: 15, fontWeight: 600,
               cursor: saving || !title.trim() ? 'not-allowed' : 'pointer',
               transition: 'all .15s ease',
             }}
